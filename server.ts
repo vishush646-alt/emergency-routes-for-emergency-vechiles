@@ -808,10 +808,36 @@ Provide a 2-paragraph predictive recommendation for traffic controllers on signa
     app.use(vite.middlewares);
   }
 
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`EMERGENX Server running on http://0.0.0.0:${PORT}`);
-  });
+  const startingPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  for (let port = startingPort; port < startingPort + 10; port += 1) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const server = app.listen(port, '0.0.0.0', () => {
+          console.log(`EMERGENX Server running on http://0.0.0.0:${port}`);
+          resolve();
+        });
+
+        server.on('error', (err: NodeJS.ErrnoException) => {
+          if (err.code === 'EADDRINUSE') {
+            reject(err);
+            return;
+          }
+
+          reject(err);
+        });
+      });
+      break;
+    } catch (err: any) {
+      if (err.code !== 'EADDRINUSE') {
+        throw err;
+      }
+
+      if (port === startingPort + 9) {
+        throw new Error(`Unable to bind server to any port between ${startingPort} and ${startingPort + 9}.`);
+      }
+    }
+  }
 }
 
 startServer().catch((err) => {
